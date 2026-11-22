@@ -1,0 +1,633 @@
+<title>二段五十音キーボード</title>
+<style>
+  /* Layout: phone-width column — header, a text screen, then a bottom keyboard
+     panel laid out on a CSS grid (modifiers / consonant / utility rows in one
+     column, the vowel rail in the other). In landscape the same grid just
+     reassigns areas so the vowel rail spans the full height, filling what
+     would otherwise be empty space beside the thinner modifiers/utility rows. */
+  :root {
+    --bg: #eef0e8;
+    --surface: #ffffff;
+    --surface-alt: #e2e5da;
+    --fg: #27261f;
+    --muted: #8c9080;
+    --accent: #2a4566;
+    --accent-soft: #d7e0ea;
+    --accent-contrast: #ffffff;
+    --border: #d2d5c7;
+    --danger: #a04b33;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1c17;
+      --surface: #24251f;
+      --surface-alt: #2e2f27;
+      --fg: #e9e7dd;
+      --muted: #8d9084;
+      --accent: #8fa9cf;
+      --accent-soft: #33465f;
+      --accent-contrast: #15191f;
+      --border: #3a3b32;
+      --danger: #dd8d6f;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1c17;
+    --surface: #24251f;
+    --surface-alt: #2e2f27;
+    --fg: #e9e7dd;
+    --muted: #8d9084;
+    --accent: #8fa9cf;
+    --accent-soft: #33465f;
+    --accent-contrast: #15191f;
+    --border: #3a3b32;
+    --danger: #dd8d6f;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Inter', system-ui, sans-serif;
+    height: 100%;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+  }
+  html { height: 100%; }
+
+  .app {
+    width: 100%;
+    max-width: 430px;
+    height: 100%;
+    min-height: 340px;
+    display: flex;
+    flex-direction: column;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 14px;
+    gap: 10px;
+  }
+
+  header { flex: 0 0 auto; }
+  header h1 {
+    font-family: 'Zen Maru Gothic', 'Inter', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 0 2px;
+    letter-spacing: .02em;
+  }
+  header p {
+    margin: 0;
+    font-size: .72rem;
+    color: var(--muted);
+    letter-spacing: .02em;
+  }
+
+  .screen {
+    flex: 1 1 auto;
+    min-height: 60px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 8px 14px;
+    overflow-y: auto;
+    cursor: text;
+  }
+  .output {
+    font-family: 'Zen Maru Gothic', 'Inter', sans-serif;
+    font-size: 1.3rem;
+    line-height: 1.7;
+    word-break: break-all;
+    white-space: pre-wrap;
+  }
+  .output .ph { color: var(--muted); font-size: .85rem; font-family: 'Inter', sans-serif; }
+  .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    background: var(--accent);
+    vertical-align: -0.2em;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .keyboard {
+    flex: 0 0 auto;
+    height: 40vh;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "mod mod"
+      "con vow"
+      "util util";
+    gap: 8px;
+  }
+  .app.landscape .keyboard {
+    height: 56vh;
+    gap: 4px;
+    grid-template-areas:
+      "mod vow"
+      "con vow"
+      "util vow";
+  }
+
+  .modifiers {
+    grid-area: mod;
+    display: flex;
+    gap: 6px;
+  }
+  .mod-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 7px 4px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+    font-family: 'Zen Maru Gothic', sans-serif;
+  }
+  .app.landscape .modifiers { gap: 4px; }
+  .app.landscape .mod-btn { padding: 4px 2px; }
+  .mod-btn .kana { font-size: .95rem; line-height: 1; }
+  .mod-btn#btnSokuon .kana { font-size: 1.3rem; }
+  .mod-btn#btnPunct .kana { font-size: .68rem; }
+  .app.landscape .mod-btn#btnSokuon .kana { font-size: 1rem; }
+  .app.landscape .mod-btn#btnPunct .kana { font-size: .6rem; }
+  .mod-btn .romaji {
+    font-family: 'Inter', sans-serif;
+    font-size: .6rem;
+    color: var(--muted);
+    letter-spacing: .02em;
+  }
+  .mod-btn#btnDelete .kana,
+  .mod-btn#btnDelete .romaji { color: var(--danger); }
+  .mod-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .mod-btn.active .kana { color: var(--accent-contrast); }
+
+  .rail {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px;
+    border-radius: 12px;
+  }
+  .rail-consonant {
+    grid-area: con;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    gap: 4px;
+    background: var(--surface);
+    border-radius: 12px 0 0 12px;
+  }
+  .app.landscape .rail-consonant {
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    border-radius: 12px;
+  }
+  .rail-vowel {
+    grid-area: vow;
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 12px 12px 0;
+  }
+  .rail-vowel button {
+    flex: 1;
+    touch-action: none;
+    transition: transform .12s ease;
+  }
+  .rail-vowel button.dragging { transition: none; }
+  .rail button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    padding: 0;
+  }
+  .rail-consonant button { background: var(--surface-alt); }
+  .rail button .kana { font-size: 1.2rem; line-height: 1; }
+  #vowelRail button {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    column-gap: 18px;
+    padding: 0 6px;
+  }
+  #vowelRail button .kana { justify-self: center; }
+  #vowelRail button .hint {
+    font-size: .68rem;
+    color: var(--muted);
+    opacity: .6;
+    line-height: 1;
+  }
+  #vowelRail button .hint-left { justify-self: end; }
+  #vowelRail button .hint-right { justify-self: start; }
+  .rail-consonant button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .rail-consonant button.active .kana { color: var(--accent-contrast); }
+
+  .rail-vowel button[disabled] {
+    opacity: .35;
+    cursor: not-allowed;
+  }
+  .rail-vowel button:not([disabled]):active,
+  .rail-consonant button:not(.active):active {
+    background: var(--accent-soft);
+  }
+  .rail button.flash { background: var(--accent); }
+  .rail button.flash .kana { color: var(--accent-contrast); }
+
+  .utility-row {
+    grid-area: util;
+    display: flex;
+    gap: 6px;
+  }
+  .utility-row button {
+    flex: 1;
+    font-family: 'Inter', sans-serif;
+    font-size: .75rem;
+    font-weight: 600;
+    padding: 9px 4px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .app.landscape .utility-row { gap: 4px; }
+  .app.landscape .utility-row button { padding: 5px 2px; font-size: .65rem; }
+  .utility-row button#btnSpace { flex: 2; }
+  .utility-row button#btnCursorLeft,
+  .utility-row button#btnCursorRight { flex: .6; font-size: 1rem; }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<div class="app">
+  <header>
+    <h1>二段五十音キーボード</h1>
+    <p>左で行、右で段を選択。母音ボタンは右に引くと濁点/小さい文字、左に引くと半濁点などになります</p>
+  </header>
+
+  <div class="screen">
+    <div class="output" id="output"><span class="ph">ここに入力されます…</span></div>
+  </div>
+
+  <div class="keyboard">
+    <div class="modifiers">
+      <button class="mod-btn" id="btnPunct">
+        <span class="kana">ー、。!?</span>
+      </button>
+      <button class="mod-btn" id="btnSokuon">
+        <span class="kana">っ</span>
+      </button>
+      <button class="mod-btn" id="btnDelete">
+        <span class="kana">⌫</span><span class="romaji">削除</span>
+      </button>
+    </div>
+
+    <div class="rail rail-consonant" id="consonantRail"></div>
+    <div class="rail rail-vowel" id="vowelRail">
+      <button data-v="0"><span class="hint hint-left"></span><span class="kana">あ</span><span class="hint hint-right"></span></button>
+      <button data-v="1"><span class="hint hint-left"></span><span class="kana">い</span><span class="hint hint-right"></span></button>
+      <button data-v="2"><span class="hint hint-left"></span><span class="kana">う</span><span class="hint hint-right"></span></button>
+      <button data-v="3"><span class="hint hint-left"></span><span class="kana">え</span><span class="hint hint-right"></span></button>
+      <button data-v="4"><span class="hint hint-left"></span><span class="kana">お</span><span class="hint hint-right"></span></button>
+    </div>
+
+    <div class="utility-row">
+      <button id="btnSpace">space</button>
+      <button id="btnCursorLeft">←</button>
+      <button id="btnCursorRight">→</button>
+      <button id="btnReturn">改行</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var PUNCT_KEY = 'punct';
+  var PUNCT_ROW = { key: PUNCT_KEY, label: 'ー', kana: ['ー', '、', '。', '!', '?'] };
+
+  var ROWS = [
+    { key: 'a',  label: 'あ', kana: ['あ','い','う','え','お'] },
+    { key: 'ka', label: 'か', kana: ['か','き','く','け','こ'], dakKana: ['が','ぎ','ぐ','げ','ご'] },
+    { key: 'sa', label: 'さ', kana: ['さ','し','す','せ','そ'], dakKana: ['ざ','じ','ず','ぜ','ぞ'] },
+    { key: 'ta', label: 'た', kana: ['た','ち','つ','て','と'], dakKana: ['だ','ぢ','づ','で','ど'] },
+    { key: 'na', label: 'な', kana: ['な','に','ぬ','ね','の'] },
+    { key: 'ha', label: 'は', kana: ['は','ひ','ふ','へ','ほ'], dakKana: ['ば','び','ぶ','べ','ぼ'], handakKana: ['ぱ','ぴ','ぷ','ぺ','ぽ'] },
+    { key: 'ma', label: 'ま', kana: ['ま','み','む','め','も'] },
+    { key: 'ya', label: 'や', kana: ['や', null, 'ゆ', null, 'よ'] },
+    { key: 'ra', label: 'ら', kana: ['ら','り','る','れ','ろ'] },
+    { key: 'wa', label: 'わ', kana: ['わ', null, 'を', null, 'ん'] }
+  ];
+
+  // first COL_SPLIT rows (あかさたな) sit in the left sub-column, the rest
+  // (はまやらわ) in the right sub-column of the consonant rail.
+  var COL_SPLIT = 5;
+
+  var SMALL_MAP = { 'あ':'ぁ', 'い':'ぃ', 'う':'ぅ', 'え':'ぇ', 'お':'ぉ', 'や':'ゃ', 'ゆ':'ゅ', 'よ':'ょ', 'つ':'っ' };
+
+  var state = { activeRow: 'a' };
+  var text = '';
+  var cursorPos = 0;
+  var beforeNode = null;
+  var afterNode = null;
+
+  var appEl = document.querySelector('.app');
+  var consonantRail = document.getElementById('consonantRail');
+  var vowelButtons = Array.prototype.slice.call(document.querySelectorAll('.rail-vowel button'));
+  var outputEl = document.getElementById('output');
+  var punctBtn = document.getElementById('btnPunct');
+
+  ROWS.forEach(function (row) {
+    var btn = document.createElement('button');
+    btn.dataset.row = row.key;
+    btn.innerHTML = '<span class="kana">' + row.label + '</span>';
+    btn.addEventListener('click', function () { onConsonant(row.key); });
+    consonantRail.appendChild(btn);
+  });
+
+  // Portrait: two 5-tall sub-columns, あかさたな then はまやらわ, top to bottom.
+  // Landscape: two 5-wide rows, each read right-to-left — あかさたな on top,
+  // はまやらわ below — so the keys nearest the thumbs on a held phone match
+  // the portrait reading order.
+  function isLandscape() {
+    return window.innerWidth > window.innerHeight;
+  }
+
+  function layoutConsonants() {
+    var landscape = isLandscape();
+    appEl.classList.toggle('landscape', landscape);
+    Array.prototype.forEach.call(consonantRail.children, function (btn, i) {
+      if (!landscape) {
+        var col = i < COL_SPLIT ? 1 : 2;
+        var row = (i < COL_SPLIT ? i : i - COL_SPLIT) + 1;
+        btn.style.gridColumn = String(col);
+        btn.style.gridRow = String(row);
+      } else if (i < COL_SPLIT) {
+        btn.style.gridRow = '1';
+        btn.style.gridColumn = String(COL_SPLIT - i);
+      } else {
+        btn.style.gridRow = '2';
+        btn.style.gridColumn = String(COL_SPLIT - (i - COL_SPLIT));
+      }
+    });
+  }
+
+  function getRow(key) {
+    for (var i = 0; i < ROWS.length; i++) if (ROWS[i].key === key) return ROWS[i];
+    return ROWS[0];
+  }
+
+  function currentRow() {
+    return state.activeRow === PUNCT_KEY ? PUNCT_ROW : getRow(state.activeRow);
+  }
+
+  // right-drag: voiced (dakuten) kana if the cell has one, else its small-kana form
+  function rightChar(row, i) {
+    if (row.key === 'a' && i === 2) return 'ぅ'; // う → small ぅ
+    if (row.dakKana && row.dakKana[i]) return row.dakKana[i];
+    var base = row.kana[i];
+    return (base && SMALL_MAP[base]) || base;
+  }
+
+  // left-drag: half-voiced (handakuten) kana; if the cell's voiced slot was
+  // already taken by the right-drag, the small-kana form moves here instead
+  function leftChar(row, i) {
+    if (row.key === 'a' && i === 2) return 'ゔ'; // う → voiced ゔ
+    if (row.handakKana && row.handakKana[i]) return row.handakKana[i];
+    var base = row.kana[i];
+    if (row.dakKana && row.dakKana[i] && base && SMALL_MAP[base]) return SMALL_MAP[base];
+    return base;
+  }
+
+  function render() {
+    Array.prototype.forEach.call(consonantRail.children, function (btn) {
+      var row = getRow(btn.dataset.row);
+      btn.classList.toggle('active', state.activeRow !== PUNCT_KEY && row.key === state.activeRow);
+    });
+    punctBtn.classList.toggle('active', state.activeRow === PUNCT_KEY);
+
+    var row = currentRow();
+    var kana = row.kana || [null, null, null, null, null];
+    kana.forEach(function (ch, i) {
+      var btn = vowelButtons[i];
+      btn.querySelector('.kana').textContent = ch || '―';
+      btn.disabled = !ch;
+      var hintL = btn.querySelector('.hint-left');
+      var hintR = btn.querySelector('.hint-right');
+      if (!ch) {
+        hintL.textContent = '';
+        hintR.textContent = '';
+        return;
+      }
+      var rc = rightChar(row, i);
+      var lc = leftChar(row, i);
+      hintR.textContent = (rc && rc !== ch) ? rc : '';
+      hintL.textContent = (lc && lc !== ch) ? lc : '';
+    });
+  }
+
+  function flash(btn) {
+    btn.classList.add('flash');
+    setTimeout(function () { btn.classList.remove('flash'); }, 120);
+  }
+
+  function renderOutput() {
+    outputEl.innerHTML = '';
+    if (!text) {
+      outputEl.innerHTML = '<span class="ph">ここに入力されます…</span>';
+      beforeNode = null;
+      afterNode = null;
+      return;
+    }
+    beforeNode = document.createTextNode(text.slice(0, cursorPos));
+    outputEl.appendChild(beforeNode);
+    var cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    outputEl.appendChild(cursor);
+    afterNode = document.createTextNode(text.slice(cursorPos));
+    outputEl.appendChild(afterNode);
+    outputEl.parentElement.scrollTop = outputEl.parentElement.scrollHeight;
+  }
+
+  function caretRangeAt(x, y) {
+    if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
+    if (document.caretPositionFromPoint) {
+      var pos = document.caretPositionFromPoint(x, y);
+      if (!pos) return null;
+      var range = document.createRange();
+      range.setStart(pos.offsetNode, pos.offset);
+      return range;
+    }
+    return null;
+  }
+
+  function onScreenTap(e) {
+    if (!text) return;
+    var range = caretRangeAt(e.clientX, e.clientY);
+    if (!range) return;
+    var node = range.startContainer;
+    var newPos = null;
+    if (node === beforeNode) newPos = range.startOffset;
+    else if (node === afterNode) newPos = cursorPos + range.startOffset;
+    if (newPos == null) return;
+    cursorPos = Math.max(0, Math.min(text.length, newPos));
+    renderOutput();
+  }
+
+  function commit(ch) {
+    text = text.slice(0, cursorPos) + ch + text.slice(cursorPos);
+    cursorPos += ch.length;
+    renderOutput();
+  }
+
+  function moveCursor(delta) {
+    cursorPos = Math.max(0, Math.min(text.length, cursorPos + delta));
+    renderOutput();
+  }
+
+  function deleteOne() {
+    if (cursorPos === 0) return;
+    text = text.slice(0, cursorPos - 1) + text.slice(cursorPos);
+    cursorPos -= 1;
+    renderOutput();
+  }
+
+  function onConsonant(key) {
+    state.activeRow = key;
+    render();
+  }
+
+  function attachVowelGesture(btn, index) {
+    var THRESH = 26;
+    var active = false;
+    var startX = 0;
+    var dx = 0;
+
+    function reset() {
+      active = false;
+      dx = 0;
+      btn.style.transform = '';
+      btn.classList.remove('dragging');
+    }
+
+    btn.addEventListener('pointerdown', function (e) {
+      if (btn.disabled) return;
+      active = true;
+      dx = 0;
+      startX = e.clientX;
+      btn.classList.add('dragging');
+      try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+
+    btn.addEventListener('pointermove', function (e) {
+      if (!active) return;
+      dx = e.clientX - startX;
+      btn.style.transform = 'translateX(' + Math.max(-22, Math.min(22, dx)) + 'px)';
+    });
+
+    btn.addEventListener('pointerup', function () {
+      if (!active) return;
+      var row = currentRow();
+      var base = row.kana[index];
+      var movedX = dx;
+      reset();
+      if (!base) return;
+      var ch = base;
+      if (movedX > THRESH) ch = rightChar(row, index);
+      else if (movedX < -THRESH) ch = leftChar(row, index);
+      if (!ch) return;
+      flash(btn);
+      commit(ch);
+      render();
+    });
+
+    btn.addEventListener('pointercancel', reset);
+  }
+
+  vowelButtons.forEach(function (btn, i) { attachVowelGesture(btn, i); });
+
+  // A button that fires once immediately on press, then auto-repeats while
+  // held, starting slow and accelerating down to a fast minimum interval.
+  function bindRepeatable(btn, action) {
+    var INITIAL_DELAY = 300;
+    var MIN_DELAY = 35;
+    var DECAY = 0.65;
+    var timer = null;
+    var delay = INITIAL_DELAY;
+
+    function tick() {
+      action();
+      delay = Math.max(MIN_DELAY, delay * DECAY);
+      timer = setTimeout(tick, delay);
+    }
+
+    function stop() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      btn.classList.remove('flash');
+    }
+
+    btn.addEventListener('pointerdown', function (e) {
+      action();
+      btn.classList.add('flash');
+      delay = INITIAL_DELAY;
+      timer = setTimeout(tick, INITIAL_DELAY);
+      try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    btn.addEventListener('pointerup', stop);
+    btn.addEventListener('pointercancel', stop);
+  }
+
+  document.getElementById('btnPunct').addEventListener('click', function () {
+    state.activeRow = PUNCT_KEY;
+    render();
+  });
+
+  document.getElementById('btnSokuon').addEventListener('click', function (e) {
+    flash(e.currentTarget);
+    commit('っ');
+  });
+
+  bindRepeatable(document.getElementById('btnSpace'), function () { commit('　'); });
+  bindRepeatable(document.getElementById('btnReturn'), function () { commit('\n'); });
+  bindRepeatable(document.getElementById('btnCursorLeft'), function () { moveCursor(-1); });
+  bindRepeatable(document.getElementById('btnCursorRight'), function () { moveCursor(1); });
+  bindRepeatable(document.getElementById('btnDelete'), deleteOne);
+
+  document.querySelector('.screen').addEventListener('click', onScreenTap);
+
+  layoutConsonants();
+  window.addEventListener('resize', layoutConsonants);
+  window.addEventListener('orientationchange', layoutConsonants);
+
+  render();
+})();
+</script>
